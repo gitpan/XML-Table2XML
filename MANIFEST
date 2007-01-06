@@ -1,0 +1,7 @@
+MANIFEST
+Makefile.PL
+README
+Table2XML.pm
+Changes
+t/Table2XML.t
+META.yml                                 Module meta-data (added by MakeMaker)
