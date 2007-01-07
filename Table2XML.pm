@@ -1,5 +1,15 @@
 package XML::Table2XML;
 
+use 5.006001; use strict; use warnings;
+use Encode 'decode';
+require Exporter;
+our @ISA = qw(Exporter);
+our @EXPORT_OK = qw(parseHeaderForXML addXMLLine commonParent offsetNodesXML);
+our $VERSION = '0.02';
+my $LINEFEED = "";
+my $XMLDIRECTIVE = '<?xml version="1.0"?>';
+my $ENCODING = 'iso-8859-1';
+
 =head1 NAME
 
 XML::Table2XML - Generic conversion of tabular data to XML by reverting Excel's flattener methodology.
@@ -40,12 +50,18 @@ This reversion is achieved by:
 The whole algorithm is done without the aid of any XML library, so it lends itself to easy translation
 into other environments and languages.
 
-For producing the XML, first, we need to invoke parseHeaderForXML, using a (the first?) line with the rootnode and path information.
-After parsing the header info, the table data can be processed row by row by calling addXMLLine.
-The current data row is provided in the single argument lineData, and the built XML string returned and can be concatenated..
-A final call to addXMLLine restores the static variables and finalizes the XML string (closes any open tags).
+Producing the XML:
 
-=head2 parseHeaderForXML ($rootNodeName,\@header,$LINEBREAKS,$XMLDIRECTIVE,$ENCODING)
+1. invoke parseHeaderForXML, using a line with the rootnode and path information.
+
+2. After parsing the header info, the table data can be processed row by row by calling addXMLLine.
+The current data row is provided in the single argument lineData, the built XML is string returned and can be collected/written.
+
+3. A final call to addXMLLine with lineData == undef restores the static variables and finalizes the XML string (closes any still open tags).
+
+=head2 Public Functions
+
+=head3 parseHeaderForXML ($rootNodeName,\@header,$LINEBREAKS,$XMLDIRECTIVE,$ENCODING)
 
 B<rootNodeName> is the name of the common root node. Any I</@rootAttributes> and I</#text> will be placed under
 respectively after this root node.
@@ -89,7 +105,7 @@ B<$XMLDIRECTIVE> specifies any header being inserted before the root element, de
 B<$ENCODING> denotes the Unicode Codification used to encode the string(s) returned by B<addXMLLine>, default is C<'iso-8859-1'>
 
 
-=head2 $returnedXML = addXMLLine(\@lineData)
+=head3 $returnedXML = addXMLLine(\@lineData)
 
 B<lineData> is a list of data elements that are converted to XML following the parsed header information.
 
@@ -97,11 +113,97 @@ The produced XML is returned as a function value which can be concatenated or wr
 
 =head2 Prerequisites for column order and data layout
 
+The layout of the columns (header = "data paths" and respective column data below) has to follow a certain layout:
+
 =over
 
-=item * move the common root (or the common subnode) siblings leftmost of the root (or resp. Subnode)
+=item * child nodes always have to follow their parent nodes (i.e. /a/b/c is after /a or /a/b).
 
-=back
+=item * "#id" columns and attributes belong to the same element node (e.g. /a/b/#id, /a/b/@att1 and /a/b/@att2) and therefore
+have to be given consecutively and with the "#id" column first (attributes and  element node order is not important).
+
+=item * related subnodes have to be grouped together (i.e. /a/b, /a/c, /a/x, /a/x/@att, ...), other subnodes have to follow.
+
+The layout of the data below has to be as follows (recursively similar within the blocks for any sub-blocks):
+
+ Block1PathHeaders            Block2PathHeaders       Block3PathHeaders
+ Block1Data                   EMPTY                   EMPTY
+ ...                          EMPTY                   EMPTY
+ Block1Data                   EMPTY                   EMPTY
+ EMPTY                        Block2Data              EMPTY
+ EMPTY                        ...                     EMPTY
+ EMPTY                        Block2Data              EMPTY
+ EMPTY                        EMPTY                   Block3Data
+ EMPTY                        EMPTY                   ...
+ EMPTY                        EMPTY                   Block3Data
+ 
+where the corresponding XML would then look like:
+
+ <root>
+ 	<Block1>
+ 		<Block1subnode>
+ 		...
+ 		</Block1subnode>
+ 		<Block1subnode>
+ 		...
+ 		</Block1subnode>
+ 		..
+ 	</Block1>
+ 	<Block2>
+ 		<Block2subnode>
+ 		...
+ 		</Block2subnode>
+ 		<Block2subnode>
+ 		...
+ 		</Block2subnode>
+ 		..
+ 	</Block2>
+ 	<Block3>
+ 		<Block3subnode>
+ 		...
+ 		</Block3subnode>
+ 		<Block3subnode>
+ 		...
+ 		</Block3subnode>
+ 		..
+ 	</Block3>
+ </root>
+
+=item * Sibling nodes that are "common" to a whole subnode (e.g. C<< <subnode><commonSibling>value1</commonSibling><otherNodes>...</otherNodes></subnode> >>)
+have to be first in the subnode and need to "span" the data there.
+
+Example for subnode <a>:
+
+ <?xml version="1.0"?>
+ <root>
+  <a>
+   <z>TestB</z>
+   <c>TestA1</c>
+   <c>TestA2</c>
+   <c>TestA3</c>
+   <c>TestA4</c>
+  </a>
+ </root>
+ 
+ /root
+ /a/z/@x	/a/c
+ TestB		TestA1
+ TestB		TestA2
+ TestB		TestA3
+ TestB		TestA4
+
+
+=item * In case you happen to own MS Excel, the easiest way to get that layout is to follow the steps below:
+
+=over
+
+=item 1. Open Target XML File in Excel (don't forget the XML directive there: "<?xml version="1.0"?>" !!!!)
+
+=item 2. remove any "#agg" columns (used to differentiate between numerical common siblings and "real" data) 
+
+=item 3. move the common root (or the common subnode) siblings leftmost of the root (or resp. Subnode)
+
+Examples:
 
  <?xml version="1.0"?>
  <root>
@@ -134,13 +236,10 @@ The produced XML is returned as a function value which can be concatenated or wr
  TestA3	TestB			TestB	TestA3
  TestA4	TestB			TestB	TestA4
 
-=over
-
-=item * For nested common sibling nodes (e.g., C<< <root><a><b>test</b></a><otherData>...<root> >> or
+=item 4. For nested common sibling nodes (e.g., C<< <root><a><b>test</b></a><otherData>...<root> >> or
 C<< <root><a><b>test1</b><c>test2</c></a><otherData>...<root> >>), write a double slash at the beginning of the last node within the nested sibling.
-Example (also includes column moving as in the examples above):
 
-=back
+Example (also includes column moving as in the examples above):
 
  <?xml version="1.0"?>
  <root>
@@ -170,13 +269,10 @@ Example (also includes column moving as in the examples above):
 								TEST		test4
 
 
-=over
-
-=item * For a first column of a subnode list that is not being a "primary key" column
+=item 5. For a first column of a subnode list that is not being a "primary key" column
 (i.e., having empty cells or continuous equal values), introduce an artificial #id column.
-Examples:
 
-=back
+Examples:
 
  <?xml version="1.0"?>
  <root>
@@ -204,7 +300,7 @@ Examples:
  <co><f><a>Numeric</a><fk>DEPARTMENT_ID</fk><fl>DEPARTMENT_n</fl></f></co>
  </root>
  
-/root					modify to->	/root			
+ /root					modify to->	/root			
  /co/f/a	/co/f/fk	/co/f/fl		/co/#id	/co/f/a	/co/f/fk	/co/f/fl
  Numeric						1	Numeric		
  VarChar						2	VarChar		
@@ -217,6 +313,27 @@ Examples:
  Numeric						9	Numeric		
  Numeric	EMPLOYEE_ID	FIRST_n			10	Numeric	EMPLOYEE_ID	FIRST_n
  Numeric	DEPARTMENT_ID	DEPARTMENT_n		11	Numeric	DEPARTMENT_ID	DEPARTMENT_n
+
+=item 6. Use the header row and rootnodeName for your data layout.
+
+=back
+
+=back
+
+=head1 LIMITATIONS
+
+Generally, pay close attention to the ordering of columns and constraints on the data as described above, 
+since the algorithm in writeLine doesn't check for validity, thus producing invalid XML in case of failing to follow preparation steps correctly.
+
+In mixed content nodes, the only way to correctly (re)produce the XML is for ONE content being right after the node name.
+There's currently no way to produce mixed content nodes with more than one text node (e.g., C<< <node>text1<subnode>Test</subnode>text2</node> >> and the like).
+
+Same sequential parent nodes are "factored" out by the flattener, so the unflattening algorithm treats them as being factored out,
+which means there is no way to exactly reproduce (C<< <a><b>test1</b></a><a><b>test2</b></a> >>, this would be processed as C<< <a><b>test1</b><b>test2</b></a> >>, which is semantically equal, but not the same...).
+
+=head1 REFERENCE
+
+for a detailed discussion of the flattening algorithmm in Excel see L<http://support.microsoft.com/kb/282161/EN-US> and L<http://support.microsoft.com/kb/288215/EN-US>
 
 =head1 AUTHOR
 
@@ -231,17 +348,6 @@ it under the same terms as Perl itself, either Perl version 5.8.8 or,
 at your option, any later version of Perl 5 you may have available.
 
 =cut
-
-use 5.006001;
-use strict; use warnings;
-use Encode 'decode';
-require Exporter;
-our @ISA = qw(Exporter);
-our @EXPORT_OK = qw(parseHeaderForXML addXMLLine commonParent offsetNodesXML);
-our $VERSION = '0.01';
-my $LINEFEED = "";
-my $XMLDIRECTIVE = '<?xml version="1.0"?>';
-my $ENCODING = 'iso-8859-1';
 
 my $rootNodeName;
 my @colPaths; # the path informations in the columns

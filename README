@@ -33,6 +33,7 @@ DEPENDENCIES
 
 This module requires these other modules and libraries:
 
+Encode and for testing: Test::More and Test::XML
 
 COPYRIGHT AND LICENCE
 

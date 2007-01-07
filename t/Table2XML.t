@@ -1,7 +1,8 @@
+use strict;
 use Test::More;
 use Test::XML;
 BEGIN {use_ok('XML::Table2XML', qw(parseHeaderForXML addXMLLine commonParent offsetNodesXML)) };
-my @xmltests = glob('./testdir/*.txt');
+my @xmltests = glob('../testdir/*.txt');
 # 19 internal function tests + ? XML tests:
 plan tests => (19 + @xmltests);
 
@@ -44,26 +45,8 @@ for my $testfilename (@xmltests) {
 	}
 	#finally finish the XML and reset the static vars
 	$testXML.=addXMLLine(undef);
-	open( OUT, '>>my.log' ) or die "Can't open my.log: $!";
-	print OUT "exp:file $testfilename :".$expectedXML;
-	print OUT "got:".$testXML;
-	close OUT;
 	is_xml($expectedXML,$testXML, "XML comparison");
 }
-
-	my $outXML = "";
-	# first parse column path headers for attribute names, id columns and special common sibling mark ("//")
-	parseHeaderForXML("rootNodeName", ['/@id','/@name2','/a']);
-	# then walk through the whole data to build the actual XML string into $outXML
-	my @datarows = ([1,"testName","testA"],
-					[1,"testName","testB"],
-					[1,"testName","testC"]);
-	for my $lineData (@datarows) {
-		$outXML.=addXMLLine($lineData);
-	}
-	#finally finish the XML and reset the static vars
-	$outXML.=addXMLLine(undef);
-	print $outXML;
 
 
 sub readTxtFile {
