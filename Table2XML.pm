@@ -2,10 +2,11 @@ package XML::Table2XML;
 
 use 5.006001; use strict; use warnings;
 use Encode 'decode';
+use Carp;
 require Exporter;
 our @ISA = qw(Exporter);
 our @EXPORT_OK = qw(parseHeaderForXML addXMLLine commonParent offsetNodesXML);
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 my $LINEFEED = "";
 my $XMLDIRECTIVE = '<?xml version="1.0"?>';
 my $ENCODING = 'iso-8859-1';
@@ -68,48 +69,50 @@ respectively after this root node.
 
 B<header> is a list of paths denoting the "place" of the data in the targeted XML. Following special cases are allowed:
 
-=over 3
+=over
 
-=item Plain elements
+=item * Plain elements
 
 are denoted by I</node/subnode/subsubnode/etc.../elementName>
 
-=item Attributes
+=item * Attributes
 
 are denoted by I</node/subnode/subsubnode/etc.../@attributeName>
 
-=item "ID" nodes
+=item * "ID" nodes
 
 are denoted by I</node/subnode/subsubnode/etc.../#id> (they are not being ouptut) 
 
-=item special common sibling nodes
+=item * special common sibling nodes
 
 are denoted by a leading double slash (I<//>)
 special common sibling nodes are used for nested common sibling nodes (e.g., C<< <root><a><b>test</b></a><otherData>...<root> >> 
 or C<< <root><a><b>test1</b><z>test2</z></a><otherData>...<root> >> ) must be located at the beginning of the last node within the nested sibling.
 
-=item a root text element
+=item * a root text element
 
 is denoted by I</#text>
 
-=item root attributes
+=item * root attributes
 
 are given as I</@rootNodeAttribute>
 
 =back
 
-B<$LINEBREAKS> specifies whether '\n' should be added for easier readablity, default is no linebreaks
+B<LINEBREAKS> specifies whether '\n' should be added after each datarow for easier readablity, default is no linebreaks
 
-B<$XMLDIRECTIVE> specifies any header being inserted before the root element, default is C<'<?xml version="1.0"?>'>.
+B<XMLDIRECTIVE> specifies any header being inserted before the root element, default is C<'<?xml version="1.0"?>'>.
 
-B<$ENCODING> denotes the Unicode Codification used to encode the string(s) returned by B<addXMLLine>, default is C<'iso-8859-1'>
+B<ENCODING> denotes the Unicode Codification used to encode the string(s) returned by B<addXMLLine()>, default is C<'iso-8859-1'>
 
 
 =head3 $returnedXML = addXMLLine(\@lineData)
 
 B<lineData> is a list of data elements that are converted to XML following the parsed header information.
 
-The produced XML is returned as a function value which can be concatenated or written to a file...
+The produced XML is returned as a function value which can be concatenated or written to a file.
+Bear in mind that the returned XML is just a part of a larger structure, so only after the last line has been processed and
+B<addXMLLine(undef)> has been called, the XML structure is finished.
 
 =head2 Prerequisites for column order and data layout
 
@@ -337,7 +340,7 @@ for a detailed discussion of the flattening algorithmm in Excel see L<http://sup
 
 =head1 AUTHOR
 
-Roland Kapl, roland@kapl.org
+Roland Kapl, rkapl@cpan.org
 
 =head1 COPYRIGHT AND LICENSE
 
@@ -366,11 +369,15 @@ sub parseHeaderForXML {
 	$LINEFEED = "\n" if $LINEBREAKS;
 	$XMLDIRECTIVE = $XMLDIR if $XMLDIR;
 	$ENCODING = $ENCODE if $ENCODE;
-	undef(@colPaths);undef(@attrNames);undef(@isIDCol);undef(@specialCommonSibling);$rootNodeName=$rootNode;
+	undef(@colPaths);undef(@attrNames);undef(@isIDCol);undef(@specialCommonSibling);
+	croak "no rootnode name given !" unless $rootNode;
+	$rootNodeName=$rootNode;
 	my $colCount = scalar @$header;
+	croak "no list of headers given !" unless $colCount > 0;
 	# Loop accross columns...
 	for my $colCounter (1..$colCount) {
 		my $thisCellValue = $header->[$colCounter-1];
+		croak "no valid header given: ". $thisCellValue unless $thisCellValue =~ /\//;
 		$specialCommonSibling[$colCounter] = 0;
 		if ($thisCellValue =~ /^\/\//) {
 			$specialCommonSibling[$colCounter] = 1;
