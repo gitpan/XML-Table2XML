@@ -2,7 +2,7 @@ use strict;
 use Test::More;
 use Test::Exception;
 use Test::XML;
-BEGIN {use_ok('XML::Table2XML', qw(parseHeaderForXML addXMLLine commonParent offsetNodesXML)) };
+BEGIN {use_ok('XML::Table2XML', qw(parseHeaderForXML addXMLLine commonParent offsetNodesXML)); my @xmltests = glob('testdir/*.txt'); print "1..".(28 + @xmltests)."\n"};
 my @xmltests = glob('testdir/*.txt');
 # 19 internal function tests + ? XML tests:
 plan tests => (28 + @xmltests);
