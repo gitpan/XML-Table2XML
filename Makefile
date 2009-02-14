@@ -55,11 +55,11 @@ DIRFILESEP = ^\
 DFSEP = $(DIRFILESEP)
 NAME = XML::Table2XML
 NAME_SYM = XML_Table2XML
-VERSION = 1.2
+VERSION = 1.3
 VERSION_MACRO = VERSION
-VERSION_SYM = 1_2
+VERSION_SYM = 1_3
 DEFINE_VERSION = -D$(VERSION_MACRO)=\"$(VERSION)\"
-XS_VERSION = 1.2
+XS_VERSION = 1.3
 XS_VERSION_MACRO = XS_VERSION
 XS_DEFINE_VERSION = -D$(XS_VERSION_MACRO)=\"$(XS_VERSION)\"
 INST_ARCHLIB = blib\arch
@@ -186,9 +186,12 @@ PERL_ARCHIVE       = $(PERL_INC)\perl58.lib
 PERL_ARCHIVE_AFTER = 
 
 
-TO_INST_PM = Table2XML.pm
+TO_INST_PM = Table2XML.pm \
+	fixWorldWritable.pl
 
-PM_TO_BLIB = Table2XML.pm \
+PM_TO_BLIB = fixWorldWritable.pl \
+	$(INST_LIB)\XML\fixWorldWritable.pl \
+	Table2XML.pm \
 	$(INST_LIB)\XML\Table2XML.pm
 
 
@@ -254,7 +257,7 @@ RCS_LABEL = rcs -Nv$(VERSION_SYM): -q
 DIST_CP = best
 DIST_DEFAULT = tardist
 DISTNAME = XML-Table2XML
-DISTVNAME = XML-Table2XML-1.2
+DISTVNAME = XML-Table2XML-1.3
 
 
 # --- MakeMaker macro section:
@@ -489,7 +492,7 @@ metafile : create_distdir
 	$(NOECHO) $(ECHO) "# http://module-build.sourceforge.net/META-spec.html" > META_new.yml
 	$(NOECHO) $(ECHO) "#XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#" >> META_new.yml
 	$(NOECHO) $(ECHO) "name:         XML-Table2XML" >> META_new.yml
-	$(NOECHO) $(ECHO) "version:      1.2" >> META_new.yml
+	$(NOECHO) $(ECHO) "version:      1.3" >> META_new.yml
 	$(NOECHO) $(ECHO) "version_from: Table2XML.pm" >> META_new.yml
 	$(NOECHO) $(ECHO) "installdirs:  site" >> META_new.yml
 	$(NOECHO) $(ECHO) "requires:" >> META_new.yml
@@ -802,7 +805,7 @@ testdb_static :: testdb_dynamic
 # --- MakeMaker ppd section:
 # Creates a PPD (Perl Package Description) for a binary distribution.
 ppd:
-	$(NOECHO) $(ECHO) "<SOFTPKG NAME=\"$(DISTNAME)\" VERSION=\"1,2,0,0\">" > $(DISTNAME).ppd
+	$(NOECHO) $(ECHO) "<SOFTPKG NAME=\"$(DISTNAME)\" VERSION=\"1,3,0,0\">" > $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) "    <TITLE>$(DISTNAME)</TITLE>" >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) "    <ABSTRACT>Generic conversion of tabular data to XML by reverting Excel's flattener methodology.</ABSTRACT>" >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) "    <AUTHOR>Roland Kapl</AUTHOR>" >> $(DISTNAME).ppd
@@ -822,6 +825,7 @@ ppd:
 
 pm_to_blib : $(TO_INST_PM)
 	$(NOECHO) $(ABSPERLRUN) -MExtUtils::Install -e "pm_to_blib({@ARGV}, '$(INST_LIB)\auto', '$(PM_FILTER)')" \
+	  fixWorldWritable.pl $(INST_LIB)\XML\fixWorldWritable.pl \
 	  Table2XML.pm $(INST_LIB)\XML\Table2XML.pm 
 	$(NOECHO) $(TOUCH) pm_to_blib
 
